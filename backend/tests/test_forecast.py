@@ -29,8 +29,10 @@ def test_surge_replenishment_delays_by_path_latency():
     balances = gloves["daily_balances"]
     assert len(balances) == 90
 
-    # Balance should be declining during the path latency period
-    assert balances[0] < balances[0] + 1  # trivially true, but balance exists
+    # Balance should decline during the path latency period (days 1-32)
+    assert balances[0] > balances[30], (
+        f"Balance should decline during latency. Day 1: {balances[0]}, Day 31: {balances[30]}"
+    )
     # After path latency (~32 days), balance should stabilize (stop declining)
     # Check that balance at day 50 equals balance at day 45 (both past latency, surge replenishment flowing)
     if gloves["stockout_day"] is None or gloves["stockout_day"] > 50:
