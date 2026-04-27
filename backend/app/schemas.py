@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -10,12 +10,12 @@ HubRouteScope = Literal["primary", "primary_secondary", "all"]
 
 class ForecastRequest(BaseModel):
     selected_node_id: str = Field(..., examples=["theater"])
-    event_type: EventType | None = Field(default=None)
+    event_type: Optional[EventType] = Field(default=None)
     severity: Severity = Field(default="medium")
     duration_days: int = Field(default=14, ge=1, le=180)
     forecast_horizon_days: int = Field(default=90, ge=1, le=365)
     hub_route_scope: HubRouteScope = Field(default="primary")
-    target_operational_state: str | None = None
+    target_operational_state: Optional[str] = None
     events: list["ScenarioEvent"] = Field(default_factory=list)
 
 
@@ -24,7 +24,7 @@ class ScenarioEvent(BaseModel):
     event_type: EventType
     severity: Severity = Field(default="medium")
     duration_days: int = Field(default=14, ge=1, le=180)
-    target_operational_state: str | None = None
+    target_operational_state: Optional[str] = None
 
 
 class DemandProfileUpdate(BaseModel):
@@ -39,8 +39,8 @@ class DemandProfileUpdate(BaseModel):
 class NodeUpdate(BaseModel):
     name: str = Field(min_length=1)
     type: str = Field(min_length=1)
-    latitude: float | None = None
-    longitude: float | None = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     population: int = Field(ge=0)
     stock_days: int = Field(ge=0, le=365)
 
