@@ -192,19 +192,28 @@ def _forecast_node(
     for item in items:
         baseline_demand = _supported_daily_demand(node["id"], nodes, routes, profiles, states, item, None, 1)
         balance = _adjusted_inventory(node, item, inventory, events, effective_stock_days, baseline_demand)
+        initial_balance = balance
         reorder_point = baseline_demand * 21
         critical_level = baseline_demand * 7
         stockout_day = None
         critical_day = None
         total_net_burn = 0
+        daily_balances = []
+        full_path_latency = latency["current_days"] or 0
 
         if is_offline:
             stockout_day = 0
             critical_day = 0
+            daily_balances = [0] * horizon
         else:
             for day in range(1, horizon + 1):
                 event_demand = _supported_daily_demand(node["id"], nodes, routes, profiles, states, item, events, day)
-                replenishment = baseline_demand if node["id"] in replenishment_nodes and day > latency["additional_days"] else 0
+                if node["id"] not in replenishment_nodes:
+                    replenishment = 0
+                elif day <= full_path_latency:
+                    replenishment = baseline_demand
+                else:
+                    replenishment = event_demand
                 net_burn = max(0, event_demand - replenishment)
                 total_net_burn += net_burn
                 balance -= net_burn
@@ -212,13 +221,15 @@ def _forecast_node(
                     critical_day = day
                 if net_burn > 0 and stockout_day is None and balance <= 0:
                     stockout_day = day
-                    break
+                daily_balances.append(max(0, round(balance)))
 
         event_demand = _supported_daily_demand(node["id"], nodes, routes, profiles, states, item, events, min(horizon, 1))
-        net_daily_burn = max(
-            0,
-            event_demand - (baseline_demand if node["id"] in replenishment_nodes and latency["additional_days"] == 0 else 0),
-        )
+        if node["id"] not in replenishment_nodes:
+            net_daily_burn = max(0, event_demand)
+        elif full_path_latency > 0:
+            net_daily_burn = max(0, event_demand - baseline_demand)
+        else:
+            net_daily_burn = max(0, event_demand - event_demand)
         remaining_days = None if net_daily_burn == 0 else max(0, balance / max(1, net_daily_burn))
         item_results.append(
             {
@@ -235,6 +246,7 @@ def _forecast_node(
                 "net_burn_rate": round(baseline_demand, 2) if is_offline else round(net_daily_burn, 2),
                 "total_net_burn": round(total_net_burn, 2),
                 "demand_basis": item["demand_basis"],
+                "daily_balances": daily_balances,
             }
         )
 
