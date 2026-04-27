@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -16,7 +16,7 @@ class ForecastRequest(BaseModel):
     forecast_horizon_days: int = Field(default=90, ge=1, le=365)
     hub_route_scope: HubRouteScope = Field(default="primary")
     target_operational_state: Optional[str] = None
-    events: list["ScenarioEvent"] = Field(default_factory=list)
+    events: List["ScenarioEvent"] = Field(default_factory=list)
 
 
 class ScenarioEvent(BaseModel):
@@ -56,4 +56,4 @@ class InventoryBalanceUpdate(BaseModel):
 
 
 class NodeInventoryUpdate(BaseModel):
-    balances: list[InventoryBalanceUpdate]
+    balances: List[InventoryBalanceUpdate]
