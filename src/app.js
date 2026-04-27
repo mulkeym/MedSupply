@@ -10,6 +10,7 @@ let selectedNodeId = "theater";
 let dataSelectedNodeId = "theater";
 let forecast = null;
 let eventQueue = [];
+let projectionChartInstance = null;
 let googleMapInstance = null;
 let googleMapsLoadPromise = null;
 let geoMarkers = [];
@@ -322,6 +323,7 @@ function renderAll() {
   renderEventQueue();
   renderSummary();
   renderItemRiskTable();
+  renderProjectionChart();
   renderRouteImpactTable();
   renderMetrics();
 }
@@ -1002,6 +1004,105 @@ function renderItemRiskTable() {
       <tbody>${rows}</tbody>
     </table>
   `;
+}
+
+const CHART_COLORS = [
+  "#3b82f6", "#ef4444", "#22c55e", "#f59e0b",
+  "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16",
+];
+
+function renderProjectionChart() {
+  const canvas = document.getElementById("projectionChart");
+  if (!canvas) return;
+  const node = forecastNodeById(selectedNodeId);
+  if (!node || !node.item_results || !node.item_results[0].daily_balances) {
+    if (projectionChartInstance) {
+      projectionChartInstance.destroy();
+      projectionChartInstance = null;
+    }
+    return;
+  }
+
+  const horizon = node.item_results[0].daily_balances.length;
+  const labels = Array.from({ length: horizon }, (_, i) => i + 1);
+
+  const datasets = node.item_results.map((item, idx) => ({
+    label: item.item_name,
+    data: item.daily_balances,
+    borderColor: CHART_COLORS[idx % CHART_COLORS.length],
+    backgroundColor: "transparent",
+    borderWidth: 2,
+    pointRadius: 0,
+    tension: 0.1,
+  }));
+
+  // Add reference lines for the riskiest item
+  const riskiest = [...node.item_results].sort(
+    (a, b) =>
+      (a.stockout_day ?? a.critical_day ?? 9999) -
+      (b.stockout_day ?? b.critical_day ?? 9999)
+  )[0];
+
+  if (riskiest) {
+    datasets.push({
+      label: "Reorder point",
+      data: Array(horizon).fill(riskiest.reorder_point),
+      borderColor: "#f59e0b",
+      borderDash: [8, 4],
+      borderWidth: 1,
+      pointRadius: 0,
+      hidden: false,
+    });
+    datasets.push({
+      label: "Critical level",
+      data: Array(horizon).fill(riskiest.critical_level),
+      borderColor: "#ef4444",
+      borderDash: [4, 4],
+      borderWidth: 1,
+      pointRadius: 0,
+      hidden: false,
+    });
+  }
+
+  if (projectionChartInstance) {
+    projectionChartInstance.destroy();
+  }
+
+  projectionChartInstance = new Chart(canvas, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      animation: { duration: 300 },
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { color: "#94a3b8", boxWidth: 12, padding: 10, font: { size: 11 } },
+        },
+        tooltip: {
+          callbacks: {
+            title: (items) => `Day ${items[0].label}`,
+            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} units`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          title: { display: true, text: "Forecast Day", color: "#94a3b8" },
+          ticks: { color: "#64748b", maxTicksLimit: 15 },
+          grid: { color: "rgba(100,116,139,0.15)" },
+        },
+        y: {
+          title: { display: true, text: "Projected Balance (units)", color: "#94a3b8" },
+          ticks: { color: "#64748b" },
+          grid: { color: "rgba(100,116,139,0.15)" },
+          beginAtZero: true,
+        },
+      },
+    },
+  });
 }
 
 function renderRouteImpactTable() {
