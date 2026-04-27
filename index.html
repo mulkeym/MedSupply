@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Medical Resupply Predictor POC</title>
+    <link rel="stylesheet" href="src/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar" aria-label="Application summary">
+        <div>
+          <p class="eyebrow">Phlebotomy Supply Chain Simulation</p>
+          <h1>Medical Resupply Predictor</h1>
+        </div>
+        <div class="topbar-metrics">
+          <div>
+            <span id="metricNodesAtRisk">0</span>
+            <label>Nodes at risk</label>
+          </div>
+          <div>
+            <span id="metricEarliestStockout">--</span>
+            <label>Earliest stockout</label>
+          </div>
+          <div>
+            <span id="metricRoutesImpacted">0</span>
+            <label>Routes impacted</label>
+          </div>
+        </div>
+      </section>
+
+      <nav class="tabbar" aria-label="Application sections">
+        <button id="operationsTabButton" class="tab-button active" type="button">Operations</button>
+        <button id="dataTabButton" class="tab-button" type="button">Data</button>
+      </nav>
+
+      <section id="operationsTab" class="tab-panel active">
+        <section class="workspace">
+          <section class="map-panel" aria-label="Supply chain map">
+            <div class="panel-header">
+              <div>
+                <h2>Regional Supply Map</h2>
+                <p>Click a hub, MTF, or forward unit to simulate an event.</p>
+              </div>
+              <div class="map-actions">
+                <button id="resetButton" type="button">Reset</button>
+              </div>
+            </div>
+            <div id="geoMapShell" class="geo-map-shell">
+              <div id="googleMap" class="google-map" aria-label="INDOPACOM regional supply map"></div>
+              <div id="mapSetupMessage" class="map-setup-message"></div>
+            </div>
+            <details class="network-detail" open>
+              <summary>Supply Chain Topology</summary>
+              <svg id="networkMap" class="network-map" viewBox="0 0 1180 720" role="img" aria-label="Notional medical logistics graph"></svg>
+            </details>
+            <div class="legend" aria-label="Map legend">
+              <span><i class="status-dot healthy"></i>Healthy</span>
+              <span><i class="status-dot watch"></i>Watch</span>
+              <span><i class="status-dot risk"></i>At risk</span>
+              <span><i class="status-dot stockout"></i>Stockout</span>
+              <span><i class="route-line primary"></i>Primary</span>
+              <span><i class="route-line secondary"></i>Secondary</span>
+              <span><i class="route-line tertiary"></i>Tertiary</span>
+              <span>Icon shape = node type</span>
+            </div>
+          </section>
+
+          <aside class="control-panel" aria-label="Scenario controls">
+            <section class="selected-node">
+              <p class="eyebrow">Selected Node</p>
+              <h2 id="selectedNodeName">Pacific Theater Medical Hub</h2>
+              <p id="selectedNodeMeta">Theater logistics hub</p>
+              <div id="selectedNodeStats" class="stat-grid"></div>
+            </section>
+
+            <section>
+              <h3>Event Simulation</h3>
+              <div id="activeEventBanner" class="active-event-banner"></div>
+              <label for="eventType">Event type</label>
+              <select id="eventType">
+                <option value="mascal">MASCAL demand surge</option>
+                <option value="fpcon">FPCON restriction</option>
+                <option value="hub_degraded">Hub degradation</option>
+                <option value="hub_offline">Hub offline</option>
+                <option value="inventory_loss">Inventory loss</option>
+                <option value="operational_state_change">Operational state change</option>
+              </select>
+              <p id="eventTypeDescription" class="field-help"></p>
+
+              <div id="eventStateTargetGroup">
+                <label for="eventOperationalState">Target operational state</label>
+                <select id="eventOperationalState"></select>
+                <p id="eventOperationalStateDescription" class="field-help"></p>
+              </div>
+
+              <label for="severity">Severity</label>
+              <select id="severity">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+              </select>
+              <p id="severityDescription" class="field-help"></p>
+
+              <label for="duration">Duration</label>
+              <select id="duration">
+                <option value="3">3 days</option>
+                <option value="7">7 days</option>
+                <option value="14" selected>14 days</option>
+                <option value="30">30 days</option>
+                <option value="90">90 days</option>
+                <option value="180">180 days</option>
+              </select>
+
+              <button id="addEventButton" type="button">Add To Queue</button>
+              <div class="queue-header">
+                <h3>Event Queue</h3>
+                <span id="queueCount">0 queued</span>
+              </div>
+              <div id="eventQueue" class="event-queue"></div>
+              <div class="run-controls">
+                <label for="horizon">Forecast horizon</label>
+                <select id="horizon">
+                  <option value="30">30 days</option>
+                  <option value="60">60 days</option>
+                  <option value="90" selected>90 days</option>
+                  <option value="180">180 days</option>
+                </select>
+              </div>
+              <button id="runButton" class="primary-action" type="button">Run Queued Scenario</button>
+              <button id="clearEventButton" type="button">Clear Queue</button>
+            </section>
+          </aside>
+        </section>
+
+        <section class="results-grid">
+          <section class="result-panel">
+            <h2>Impact Summary</h2>
+            <div id="impactSummary" class="impact-list"></div>
+          </section>
+          <section class="result-panel">
+            <h2>Item Risk</h2>
+            <div id="itemRiskTable" class="table-wrap"></div>
+          </section>
+          <section class="result-panel">
+            <h2>Route Impacts</h2>
+            <div id="routeImpactTable" class="table-wrap"></div>
+          </section>
+        </section>
+      </section>
+
+      <section id="dataTab" class="tab-panel">
+        <section class="data-layout">
+          <section class="result-panel node-directory">
+            <p class="eyebrow">Node Directory</p>
+            <h2>All Nodes</h2>
+            <section class="global-scenario-panel">
+              <h3>Global Scenario</h3>
+              <label for="globalStockPosture">Set all sites to stock posture</label>
+              <select id="globalStockPosture">
+                <option value="7">1 week</option>
+                <option value="30">30 days</option>
+                <option value="60">60 days</option>
+                <option value="180" selected>180 days</option>
+              </select>
+              <label for="hubRouteScope">Hub stocking coverage</label>
+              <select id="hubRouteScope">
+                <option value="primary" selected>Primary paths only</option>
+                <option value="primary_secondary">Primary + secondary paths</option>
+                <option value="all">Primary + secondary + tertiary paths</option>
+              </select>
+              <div class="stock-preset-row">
+                <button type="button" data-stock-days="7">7d</button>
+                <button type="button" data-stock-days="30">30d</button>
+                <button type="button" data-stock-days="60">60d</button>
+                <button type="button" data-stock-days="180">180d</button>
+              </div>
+              <button id="applyGlobalStockButton" type="button">Apply Stock Posture</button>
+            </section>
+            <div id="dataNodeList" class="data-node-list"></div>
+          </section>
+
+          <section class="result-panel data-editor">
+            <p class="eyebrow">Node Data</p>
+            <h2 id="dataNodeName">Pacific Theater Medical Hub</h2>
+            <p id="dataNodeMeta">Burn-rate assumptions and inventory for the selected data node.</p>
+            <div id="dataNodeStats" class="stat-grid data-node-stats"></div>
+
+            <section class="node-detail-editor">
+              <h3>Node Details</h3>
+              <label for="nodeNameInput">Node name</label>
+              <input id="nodeNameInput" type="text">
+
+              <label for="nodeTypeInput">Node type</label>
+              <input id="nodeTypeInput" type="text">
+
+              <div class="input-grid">
+                <div>
+                  <label for="nodePopulationInput">Assigned personnel</label>
+                  <input id="nodePopulationInput" type="number" min="0" step="1">
+                </div>
+                <div>
+                  <label for="nodeStockDaysInput">Target stock days</label>
+                  <input id="nodeStockDaysInput" type="number" min="0" max="365" step="1">
+                </div>
+                <div>
+                  <label for="nodeLatitudeInput">Latitude</label>
+                  <input id="nodeLatitudeInput" type="number" step="0.0001">
+                </div>
+                <div>
+                  <label for="nodeLongitudeInput">Longitude</label>
+                  <input id="nodeLongitudeInput" type="number" step="0.0001">
+                </div>
+              </div>
+
+              <button id="saveNodeButton" type="button">Save Node Details</button>
+            </section>
+
+            <section class="demand-profile">
+              <h3>Burn Rate Assumptions</h3>
+              <label for="activePopulation">Active supported population</label>
+              <input id="activePopulation" type="number" min="0" step="1">
+
+              <label for="operationalState">Operational state</label>
+              <select id="operationalState"></select>
+              <div id="stateImpactPreview" class="state-impact"></div>
+              <label for="stateEventDuration">Duration</label>
+              <select id="stateEventDuration">
+                <option value="3">3 days</option>
+                <option value="7">7 days</option>
+                <option value="14" selected>14 days</option>
+                <option value="30">30 days</option>
+                <option value="90">90 days</option>
+                <option value="180">180 days</option>
+              </select>
+              <button id="queueStateEventButton" type="button">Queue State Event</button>
+
+              <div class="input-grid">
+                <div>
+                  <label for="encounterRate">Daily encounter rate</label>
+                  <input id="encounterRate" type="number" min="0" max="1" step="0.001">
+                </div>
+                <div>
+                  <label for="phlebotomyRate">Phlebotomy probability</label>
+                  <input id="phlebotomyRate" type="number" min="0" max="1" step="0.001">
+                </div>
+                <div>
+                  <label for="specimensPerDraw">Specimens per draw</label>
+                  <input id="specimensPerDraw" type="number" min="0" step="0.05">
+                </div>
+                <div>
+                  <label for="wasteFactor">Waste factor</label>
+                  <input id="wasteFactor" type="number" min="1" max="5" step="0.01">
+                </div>
+              </div>
+
+              <button id="saveProfileButton" type="button">Save Burn Rate</button>
+            </section>
+
+            <section class="inventory-editor">
+              <h3>Material Inventory</h3>
+              <div id="inventoryEditorTable" class="table-wrap"></div>
+              <button id="saveInventoryButton" type="button">Save Inventory</button>
+            </section>
+          </section>
+
+          <section class="result-panel">
+            <h2>Model Notes</h2>
+            <div class="impact-list">
+              <div class="impact-card">
+                <strong>Burn rate model</strong>
+                <p>Demand is driven by active supported population, encounter rate, phlebotomy probability, operational state, and waste factor.</p>
+              </div>
+              <div class="impact-card">
+                <strong>Workflow</strong>
+                <p>Select any node in the Data tab directory, inspect its modeled burn rate and inventory, then save changes independently of the Operations map selection.</p>
+              </div>
+            </div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script src="src/app.js"></script>
+  </body>
+</html>

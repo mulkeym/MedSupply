@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+backend/med_supply.db
+~$*
+.DS_Store
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
