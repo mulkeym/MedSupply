@@ -1001,3 +1001,16 @@ th {
     font-size: 1.55rem;
   }
 }
+
+.chart-container {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--surface, #1e293b);
+  border-radius: 8px;
+}
+
+.chart-container h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary, #94a3b8);
+}
